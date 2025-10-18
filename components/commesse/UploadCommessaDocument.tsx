@@ -60,6 +60,7 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
       const presRes = await fetch('/api/upload/presign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ key, contentType: file.type || 'application/octet-stream' }),
       });
       const pres = await presRes.json();
@@ -70,6 +71,8 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
       const save = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
         body: JSON.stringify({
           commessaId,
           tipo,
@@ -80,7 +83,10 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
           ...(createScad ? { createScadenza: { kind, dateDue, importo: importo ? Number(importo) : undefined, supplierId: supplierId ? Number(supplierId) : undefined } } : {}),
         }),
       });
-      if (!save.ok) throw new Error('Salvataggio documento fallito');
+      if (!save.ok) {
+        const errText = await save.text();
+        throw new Error(errText || 'Salvataggio documento fallito');
+      }
       const createdDoc = await save.json();
 
       if (tipo === 'FATTURA') {
@@ -91,6 +97,7 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
             const invRes = await fetch('/api/invoices', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
               body: JSON.stringify({
                 commessaId,
                 supplierId: Number(supplierId),
@@ -122,6 +129,7 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
             const ddtRes = await fetch('/api/ddt', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
               body: JSON.stringify({
                 commessaId,
                 supplierId: Number(supplierId),
