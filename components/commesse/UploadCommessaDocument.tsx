@@ -16,6 +16,8 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
   const [dateDue, setDateDue] = useState('');
   const [importo, setImporto] = useState('');
   const [supplierId, setSupplierId] = useState('');
+  const [numeroFattura, setNumeroFattura] = useState('');
+  const [dataFattura, setDataFattura] = useState('');
 
   function toYmd(d: Date) {
     const y = d.getFullYear();
@@ -31,18 +33,23 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
       setKind('ECONOMICA');
       const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       setDateDue(toYmd(d));
+      setDataFattura(toYmd(new Date()));
     } else if (tipo === 'DDT') {
       setCreateScad(true);
       setKind('CONSEGNA');
       setDateDue(toYmd(new Date()));
       setImporto('');
       setSupplierId('');
+      setNumeroFattura('');
+      setDataFattura('');
     } else {
       // Altri tipi: disattivo preset, l'utente può abilitarlo manualmente
       setCreateScad(false);
       setImporto('');
       setSupplierId('');
       setDateDue('');
+      setNumeroFattura('');
+      setDataFattura('');
     }
   }, [tipo]);
 
@@ -74,6 +81,67 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
         }),
       });
       if (!save.ok) throw new Error('Salvataggio documento fallito');
+      const createdDoc = await save.json();
+
+      if (tipo === 'FATTURA') {
+        try {
+          if (!supplierId || !importo) {
+            toast.message('Fattura non creata automaticamente: specifica fornitore e importo');
+          } else {
+            const invRes = await fetch('/api/invoices', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                commessaId,
+                supplierId: Number(supplierId),
+                numero: numeroFattura || file.name,
+                dataFattura: dataFattura || toYmd(new Date()),
+                importoTotale: Number(importo),
+                dataScadenza: dateDue || undefined,
+                documentoId: createdDoc?.id,
+              }),
+            });
+            if (!invRes.ok) {
+              const msg = await invRes.text();
+              toast.error(`Creazione fattura fallita: ${msg || 'errore'}`);
+            } else {
+              toast.success('Fattura creata');
+            }
+          }
+        } catch (err: any) {
+          toast.error(err?.message || 'Errore creazione fattura');
+        }
+      }
+
+      // Se il documento è un DDT, creo automaticamente il DDT collegato
+      if (tipo === 'DDT') {
+        try {
+          if (!supplierId) {
+            toast.message('DDT non creato automaticamente: specifica fornitore');
+          } else {
+            const ddtRes = await fetch('/api/ddt', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                commessaId,
+                supplierId: Number(supplierId),
+                numero: file.name,
+                data: toYmd(new Date()),
+                importo: importo ? Number(importo) : undefined,
+                documentoId: createdDoc?.id,
+              }),
+            });
+            if (!ddtRes.ok) {
+              const msg = await ddtRes.text();
+              toast.error(`Creazione DDT fallita: ${msg || 'errore'}`);
+            } else {
+              toast.success('DDT creato');
+            }
+          }
+        } catch (err: any) {
+          toast.error(err?.message || 'Errore creazione DDT');
+        }
+      }
       toast.success('Documento caricato');
       setFile(null);
       // Aggiorna i dati della pagina (server component) per mostrare subito l'allegato
@@ -100,6 +168,18 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
           <label className="text-sm">File</label>
           <Input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         </div>
+        {tipo === 'FATTURA' && (
+          <>
+            <div className="space-y-2">
+              <label className="text-sm">Numero fattura</label>
+              <Input value={numeroFattura} onChange={(e)=> setNumeroFattura(e.target.value)} placeholder="Es. 123/2025" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm">Data fattura</label>
+              <DatePicker value={dataFattura} onChange={setDataFattura} />
+            </div>
+          </>
+        )}
       </div>
       <div className="border-t p-3">
         <label className="mb-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createScad} onChange={(e)=> setCreateScad(e.target.checked)} /> Crea scadenza</label>
