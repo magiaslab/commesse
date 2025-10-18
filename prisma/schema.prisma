@@ -1,0 +1,351 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  CONTABILE
+  OPERATORE
+}
+
+enum Theme {
+  light
+  dark
+  system
+}
+
+enum AccentColor {
+  red
+  blue
+  green
+  orange
+  violet
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  name           String?
+  email          String    @unique
+  role           Role      @default(OPERATORE)
+  password       String?
+  image          String?
+  firstName      String?
+  lastName       String?
+  nickname       String?
+  address        String?
+  phone          String?
+  alertEmail     String?
+  theme          Theme?
+  accentColor    AccentColor?
+  emailVerified  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  sessions       Session[]
+  resetTokens    PasswordResetToken[]
+}
+
+model Client {
+  id              Int      @id @default(autoincrement())
+  ragioneSociale  String
+  nomeCommerciale String?
+  partitaIva      String?
+  codiceFiscale   String?
+  indirizzo       String?
+  cap             String?
+  comune          String?
+  provincia       String?
+  pec             String?
+  codiceDestinatario String?
+  referente       String?
+  telefono        String?
+  email           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  commesse        Commessa[]
+  documents       Document[] @relation("docs_client")
+}
+
+model Supplier {
+  id                 Int      @id @default(autoincrement())
+  ragioneSociale     String
+  nomeCommerciale    String?
+  partitaIva         String?
+  codiceFiscale      String?
+  indirizzo          String?
+  cap                String?
+  comune             String?
+  provincia          String?
+  pec                String?
+  codiceDestinatario String?
+  referente          String?
+  telefono           String?
+  email              String?
+  iban               String?
+  bic                String?
+  codiceAteco        String?
+  modalitaPagamento  String?
+  giorniPagamento    Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  ddt                DDT[]
+  invoices           Invoice[]
+  documents          Document[] @relation("docs_supplier")
+}
+
+model Commessa {
+  id            Int      @id @default(autoincrement())
+  codice        String   @unique
+  titolo        String
+  descrizione   String?
+  clientId      Int
+  cliente       Client   @relation(fields: [clientId], references: [id])
+  responsabileId Int?
+  budget        Float?
+  dataInizio    DateTime?
+  dataFinePrev  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  documents     Document[]
+  ddt           DDT[]
+  invoices      Invoice[]
+  scadenze      Scadenza[]
+  invoiceLinks  InvoiceCommessa[]
+  ddtLinks      DDTCommessa[]
+  preventivi    Preventivo[]
+}
+
+model Document {
+  id                Int       @id @default(autoincrement())
+  commessaId        Int?
+  commessa          Commessa? @relation(fields: [commessaId], references: [id])
+  clientId          Int?
+  client            Client?   @relation("docs_client", fields: [clientId], references: [id])
+  supplierId        Int?
+  supplier          Supplier? @relation("docs_supplier", fields: [supplierId], references: [id])
+  tipo              String
+  filenameOriginal  String
+  s3Key             String
+  mimetype          String
+  sizeBytes         Int
+  documentDate      DateTime?
+  documentNumber    String?
+  expiryDate        DateTime?
+  uploadedByUserId  Int?
+  uploadedAt        DateTime @default(now())
+  ocrText           String?
+  verified          Boolean  @default(false)
+  notes             String?
+  ddtRecords        DDT[]     @relation("DDTDocument")
+  invoiceRecords    Invoice[] @relation("InvoiceDocument")
+  preventivoVersions PreventivoVersion[] @relation("PreventivoVersionDocument")
+}
+
+model DDT {
+  id            Int       @id @default(autoincrement())
+  commessaId    Int?
+  commessa      Commessa? @relation(fields: [commessaId], references: [id])
+  supplierId    Int
+  supplier      Supplier  @relation(fields: [supplierId], references: [id])
+  numero        String
+  data          DateTime
+  descrizione   String?
+  importo       Float?
+  documentoId   Int?
+  documento     Document? @relation("DDTDocument", fields: [documentoId], references: [id])
+  createdAt     DateTime  @default(now())
+  invoiceLinks  InvoiceDDT[]
+  commesse      DDTCommessa[]
+}
+
+model Invoice {
+  id             Int       @id @default(autoincrement())
+  commessaId     Int?
+  commessa       Commessa? @relation(fields: [commessaId], references: [id])
+  supplierId     Int
+  supplier       Supplier  @relation(fields: [supplierId], references: [id])
+  numero         String
+  dataFattura    DateTime
+  importoTotale  Float
+  dataScadenza   DateTime
+  statoPagamento String    @default("da_pagare")
+  documentoId    Int?
+  documento      Document? @relation("InvoiceDocument", fields: [documentoId], references: [id])
+  ddtLinks       InvoiceDDT[]
+  createdAt      DateTime  @default(now())
+  commesse       InvoiceCommessa[]
+}
+
+model InvoiceDDT {
+  id        Int     @id @default(autoincrement())
+  invoiceId Int
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  ddtId     Int
+  ddt       DDT     @relation(fields: [ddtId], references: [id])
+}
+
+model InvoiceCommessa {
+  id         Int      @id @default(autoincrement())
+  invoiceId  Int
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  commessaId Int
+  commessa   Commessa @relation(fields: [commessaId], references: [id])
+}
+
+model DDTCommessa {
+  id         Int      @id @default(autoincrement())
+  ddtId      Int
+  ddt        DDT      @relation(fields: [ddtId], references: [id])
+  commessaId Int
+  commessa   Commessa @relation(fields: [commessaId], references: [id])
+}
+
+model Scadenza {
+  id              Int      @id @default(autoincrement())
+  commessaId      Int
+  commessa        Commessa @relation(fields: [commessaId], references: [id])
+  title           String
+  tipo            String
+  dateDue         DateTime
+  dateCompleted   DateTime?
+  responsabile    String?
+  importo         Float?
+  documentRefId   Int?
+  supplierId      Int?
+  invoiceId       Int?
+  alertEmail      Boolean  @default(true)
+  alertDaysBefore String?
+  createdAt       DateTime @default(now())
+}
+
+// Preventivi di commessa
+enum PreventivoStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  SUPERSEDED
+}
+
+enum PreventivoItemCategory {
+  MATERIALI
+  MANODOPERA
+  GESTIONE
+}
+
+model Preventivo {
+  id                      Int                 @id @default(autoincrement())
+  commessaId              Int
+  commessa                Commessa            @relation(fields: [commessaId], references: [id])
+  currency                String              @default("EUR")
+  note                    String?
+  currentApprovedVersionId Int? @unique
+  currentApprovedVersion  PreventivoVersion?  @relation("approved_version", fields: [currentApprovedVersionId], references: [id])
+  versions                PreventivoVersion[]
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+}
+
+model PreventivoVersion {
+  id              Int               @id @default(autoincrement())
+  preventivoId    Int
+  preventivo      Preventivo        @relation(fields: [preventivoId], references: [id])
+  versionNumber   Int
+  status          PreventivoStatus  @default(DRAFT)
+  submittedAt     DateTime?
+  submittedByUserId Int?
+  approvedAt      DateTime?
+  approvedByUserId Int?
+  lockedAt        DateTime?
+  vatRate         Float              @default(0)
+  discountPercent Float              @default(0)
+  totalMaterials  Float              @default(0)
+  totalLabor      Float              @default(0)
+  totalOverheads  Float              @default(0)
+  totalBeforeTax  Float              @default(0)
+  totalWithTax    Float              @default(0)
+  issueDate       DateTime?
+  dueDate         DateTime?
+  note            String?
+  validFrom       DateTime?
+  validTo         DateTime?
+  changeNote      String?
+  items           PreventivoItem[]
+  documentId      Int?
+  document        Document?          @relation("PreventivoVersionDocument", fields: [documentId], references: [id])
+  approvedFor     Preventivo?        @relation("approved_version")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([preventivoId, versionNumber])
+}
+
+model PreventivoItem {
+  id                   Int                      @id @default(autoincrement())
+  preventivoVersionId  Int
+  version              PreventivoVersion        @relation(fields: [preventivoVersionId], references: [id])
+  category             PreventivoItemCategory
+  description          String
+  quantity             Float                    @default(1)
+  unit                 String?
+  unitCost             Float                    @default(0)
+  hours                Float?
+  hourlyRate           Float?
+  taxable              Boolean                  @default(true)
+  discountPercent      Float                    @default(0)
+  lineTotal            Float                    @default(0)
+  orderIndex           Int                      @default(0)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+}
+
+// Dizionario unità di misura per righe preventivo
+model Unit {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  label     String
+  category  PreventivoItemCategory?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  sessionToken String   @unique
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  expires      DateTime
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Token di reset password
+model PasswordResetToken {
+  id         String   @id @default(cuid())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  token      String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, usedAt])
+}
