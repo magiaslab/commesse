@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { DatePicker } from '@/components/ui/date-picker';
+import { SupplierSearch } from '@/components/forms/SupplierSearch';
 
 export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
   const router = useRouter();
@@ -16,6 +17,7 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
   const [dateDue, setDateDue] = useState('');
   const [importo, setImporto] = useState('');
   const [supplierId, setSupplierId] = useState('');
+  const supplierIdNum = supplierId ? Number(supplierId) : undefined;
   const [numeroFattura, setNumeroFattura] = useState('');
   const [dataFattura, setDataFattura] = useState('');
 
@@ -100,7 +102,7 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
               credentials: 'include',
               body: JSON.stringify({
                 commessaId,
-                supplierId: Number(supplierId),
+                supplierId: supplierIdNum ?? Number(supplierId),
                 numero: numeroFattura || file.name,
                 dataFattura: dataFattura || toYmd(new Date()),
                 importoTotale: Number(importo),
@@ -132,7 +134,7 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
               credentials: 'include',
               body: JSON.stringify({
                 commessaId,
-                supplierId: Number(supplierId),
+                supplierId: supplierIdNum ?? Number(supplierId),
                 numero: file.name,
                 data: toYmd(new Date()),
                 importo: importo ? Number(importo) : undefined,
@@ -211,8 +213,8 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
                   <Input className="w-full" type="number" step="0.01" placeholder="Importo" value={importo} onChange={(e)=> setImporto(e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-sm">ID Fornitore</label>
-                  <Input className="w-full" placeholder="Supplier ID" value={supplierId} onChange={(e)=> setSupplierId(e.target.value)} />
+                  <label className="text-sm">Fornitore</label>
+                  <SupplierSearch value={supplierId ? Number(supplierId) : undefined as any} onChange={(id)=> setSupplierId(String(id))} />
                 </div>
               </>
             )}
