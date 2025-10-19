@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from '@tanstack/react-table';
 import { TableToolbar } from '@/components/ui/table-toolbar';
@@ -54,6 +56,36 @@ export default function CommessePage() {
             <Link href={`/commesse/${row.original.id}`} className="text-primary hover:underline">
               Dettaglio
             </Link>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button className="text-gray-600 hover:text-primary">Elimina</button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Eliminare questa commessa?</AlertDialogTitle>
+                  <AlertDialogDescription>Questa azione è definitiva.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel type="button">Annulla</AlertDialogCancel>
+                  <AlertDialogAction
+                    type="button"
+                    onClick={async () => {
+                      const res = await fetch(`/api/commesse/${row.original.id}`, { method: 'DELETE' });
+                      if (res.ok) {
+                        toast.success('Commessa eliminata');
+                        // Aggiorna lista locale
+                        // Non abbiamo setData qui: usiamo una forzatura via window.location o gestore sollevato
+                        window.location.reload();
+                      } else {
+                        toast.error('Errore eliminazione commessa');
+                      }
+                    }}
+                  >
+                    Conferma
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         ),
       },

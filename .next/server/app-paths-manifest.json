@@ -1,6 +1,6 @@
 {
   "/commesse/[id]/page": "app/commesse/[id]/page.js",
-  "/commesse/page": "app/commesse/page.js",
   "/preventivi/versions/[versionId]/edit/page": "app/preventivi/versions/[versionId]/edit/page.js",
+  "/commesse/page": "app/commesse/page.js",
   "/page": "app/page.js"
 }
