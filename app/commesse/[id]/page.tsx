@@ -25,23 +25,26 @@ async function getCommessa(id: string) {
   const proto = h.get('x-forwarded-proto') || 'http';
   const base = `${proto}://${host}`;
   const cookie = h.get('cookie') || '';
-  const [commessaRes, invoicesRes, ddtRes, docsRes] = await Promise.all([
+  const [commessaRes, invoicesRes, ddtRes, docsRes, custInvRes] = await Promise.allSettled([
     fetch(`${base}/api/commesse/${id}`, { cache: 'no-store', headers: { cookie } }),
     fetch(`${base}/api/invoices?commessaId=${id}`, { cache: 'no-store', headers: { cookie } }),
     fetch(`${base}/api/ddt?commessaId=${id}`, { cache: 'no-store', headers: { cookie } }),
     fetch(`${base}/api/documents?commessaId=${id}`, { cache: 'no-store', headers: { cookie } }),
+    fetch(`${base}/api/customer-invoices?commessaId=${id}`, { cache: 'no-store', headers: { cookie } }),
   ]);
-  const commessa = commessaRes.ok ? await commessaRes.json() : null;
-  const invoicesRaw = invoicesRes.ok ? await invoicesRes.json() : [];
-  const ddtRaw = ddtRes.ok ? await ddtRes.json() : [];
-  const documents = docsRes.ok ? await docsRes.json() : { items: [] };
+  const commessa = commessaRes.status === 'fulfilled' && commessaRes.value.ok ? await commessaRes.value.json() : null;
+  const invoicesRaw = invoicesRes.status === 'fulfilled' && invoicesRes.value.ok ? await invoicesRes.value.json() : [];
+  const ddtRaw = ddtRes.status === 'fulfilled' && ddtRes.value.ok ? await ddtRes.value.json() : [];
+  const documents = docsRes.status === 'fulfilled' && docsRes.value.ok ? await docsRes.value.json() : { items: [] };
   const invoices = Array.isArray(invoicesRaw) ? invoicesRaw : (invoicesRaw.items || []);
   const ddt = Array.isArray(ddtRaw) ? ddtRaw : (ddtRaw.items || []);
-  return { commessa, invoices, ddt, documents };
+  const custRaw = custInvRes.status === 'fulfilled' && custInvRes.value.ok ? await custInvRes.value.json() : [];
+  const customerInvoices = Array.isArray(custRaw) ? custRaw : (custRaw.items || []);
+  return { commessa, invoices, ddt, documents, customerInvoices };
 }
 
 export default async function CommessaPage({ params }: { params: { id: string } }) {
-  const { commessa, invoices, ddt, documents } = await getCommessa(params.id);
+  const { commessa, invoices, ddt, documents, customerInvoices } = await getCommessa(params.id);
   if (!commessa) return notFound();
 
   const budget = commessa.budget ?? 0;
@@ -51,10 +54,6 @@ export default async function CommessaPage({ params }: { params: { id: string } 
     .filter((i: any) => i.statoPagamento !== 'pagata' && new Date(i.dataScadenza) < oggi)
     .reduce((sum: number, i: any) => sum + (i.importoTotale || 0), 0);
 
-  // KPI cliente (placeholder tramite API customer-invoices)
-  const customerRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/customer-invoices?commessaId=${params.id}`, { cache: 'no-store' });
-  const customerJson = customerRes.ok ? await customerRes.json() : { items: [] };
-  const customerInvoices = Array.isArray(customerJson) ? customerJson : (customerJson.items || []);
   const totaleCliente = customerInvoices.reduce((s: number, r: any) => s + (r.importoTotale || 0), 0);
   const incassato = customerInvoices.filter((r: any) => r.dataIncasso).reduce((s: number, r: any) => s + (r.importoTotale || 0), 0);
   const daIncassare = totaleCliente - incassato;
