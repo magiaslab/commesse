@@ -53,6 +53,10 @@ export default async function CommessaPage({ params }: { params: { id: string } 
   const totaleScaduto = invoices
     .filter((i: any) => i.statoPagamento !== 'pagata' && new Date(i.dataScadenza) < oggi)
     .reduce((sum: number, i: any) => sum + (i.importoTotale || 0), 0);
+  const daPagareFornitori = invoices
+    .filter((i: any) => i.statoPagamento !== 'pagata')
+    .reduce((sum: number, i: any) => sum + (i.importoTotale || 0), 0);
+  const margineAtteso = (budget || 0) - (totaleFornitori || 0);
 
   const totaleCliente = customerInvoices.reduce((s: number, r: any) => s + (r.importoTotale || 0), 0);
   const incassato = customerInvoices.filter((r: any) => r.dataIncasso).reduce((s: number, r: any) => s + (r.importoTotale || 0), 0);
@@ -80,6 +84,10 @@ export default async function CommessaPage({ params }: { params: { id: string } 
           title="Totale scaduto (fornitori)"
           value={totaleScaduto.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
         />
+      </section>
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <KPICard title="Da pagare (fornitori)" value={daPagareFornitori.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} color="amber" />
+        <KPICard title="Margine atteso" value={margineAtteso.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} color={margineAtteso >= 0 ? 'green' : 'red'} />
       </section>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KPICard title="Totale fatture cliente" value={totaleCliente.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} />
