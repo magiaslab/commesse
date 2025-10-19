@@ -51,6 +51,14 @@ export default async function CommessaPage({ params }: { params: { id: string } 
     .filter((i: any) => i.statoPagamento !== 'pagata' && new Date(i.dataScadenza) < oggi)
     .reduce((sum: number, i: any) => sum + (i.importoTotale || 0), 0);
 
+  // KPI cliente (placeholder tramite API customer-invoices)
+  const customerRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/customer-invoices?commessaId=${params.id}`, { cache: 'no-store' });
+  const customerJson = customerRes.ok ? await customerRes.json() : { items: [] };
+  const customerInvoices = Array.isArray(customerJson) ? customerJson : (customerJson.items || []);
+  const totaleCliente = customerInvoices.reduce((s: number, r: any) => s + (r.importoTotale || 0), 0);
+  const incassato = customerInvoices.filter((r: any) => r.dataIncasso).reduce((s: number, r: any) => s + (r.importoTotale || 0), 0);
+  const daIncassare = totaleCliente - incassato;
+
   return (
     <main className="space-y-6 p-6">
       <header className="flex flex-col gap-2">
@@ -73,6 +81,11 @@ export default async function CommessaPage({ params }: { params: { id: string } 
           title="Totale scaduto (fornitori)"
           value={totaleScaduto.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
         />
+      </section>
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <KPICard title="Totale fatture cliente" value={totaleCliente.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} />
+        <KPICard title="Incassato" value={incassato.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} color="green" />
+        <KPICard title="Da incassare" value={daIncassare.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} color="amber" />
       </section>
 
       <Tabs defaultValue="documenti">

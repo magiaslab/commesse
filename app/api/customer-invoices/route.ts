@@ -13,6 +13,7 @@ export async function GET(req: Request) {
   const pageSize = Math.min(100, Math.max(1, Number(searchParams.get('pageSize') || '10')));
   const includeDeleted = searchParams.get('includeDeleted') === 'true';
   const onlyDeleted = searchParams.get('onlyDeleted') === 'true';
+  const format = searchParams.get('format');
 
   const where: any = {};
   if (commessaId) where.commessaId = Number(commessaId);
@@ -24,8 +25,18 @@ export async function GET(req: Request) {
     ];
   }
 
+  if (format === 'csv') {
+    const rows = await prisma.customerInvoice.findMany({ where, orderBy: { createdAt: 'desc' }, include: { commessa: { select: { codice: true, titolo: true } } } });
+    const esc = (v: any) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const lines = [
+      ['id','numero','dataFattura','importoTotale','incasso','stato','commessa'].map(esc).join(','),
+      ...rows.map(r => [r.id, r.numero, r.dataFattura.toISOString(), r.importoTotale, r.dataIncasso ? r.dataIncasso.toISOString() : '', r.statoIncasso, r.commessa ? `${r.commessa.codice} - ${r.commessa.titolo}` : ''].map(esc).join(','))
+    ].join('\n');
+    return new NextResponse(lines, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="customer-invoices.csv"' } });
+  }
+
   const [items, total] = await Promise.all([
-    prisma.customerInvoice.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page-1)*pageSize, take: pageSize }),
+    prisma.customerInvoice.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page-1)*pageSize, take: pageSize, include: { documento: { select: { s3Key: true, filenameOriginal: true } }, commessa: { select: { codice: true, titolo: true } } } }),
     prisma.customerInvoice.count({ where }),
   ]);
   return NextResponse.json({ items, total, page, pageSize });
