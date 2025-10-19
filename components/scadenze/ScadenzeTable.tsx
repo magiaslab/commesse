@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { Input } from '@/components/ui/input';
 import { TableToolbar } from '@/components/ui/table-toolbar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 
 type Scadenza = {
   id: number;
@@ -96,6 +98,12 @@ export function ScadenzeTable({ commessaId }: { commessaId: number }) {
             defaultValue={row.original.responsabile || ''}
             onBlur={(e) => save(row.original.id, { responsabile: e.target.value })}
           />
+        ),
+      },
+      {
+        header: 'Azioni',
+        cell: ({ row }) => (
+          <DeleteScadenzaButton id={row.original.id} onDeleted={() => setRows((s) => s.filter((r) => r.id !== row.original.id))} />
         ),
       },
     ],
@@ -189,6 +197,35 @@ export function ScadenzeTable({ commessaId }: { commessaId: number }) {
         </>
       )}
     </div>
+  );
+}
+
+function DeleteScadenzaButton({ id, onDeleted }: { id: number; onDeleted: () => void }) {
+  const handleDelete = async () => {
+    const res = await fetch(`/api/scadenze?id=${id}`, { method: 'DELETE', cache: 'no-store' });
+    if (res.ok) {
+      onDeleted();
+      toast.success('Scadenza eliminata');
+    } else {
+      toast.error('Errore eliminazione scadenza');
+    }
+  };
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" size="sm">Elimina</Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminare la scadenza?</AlertDialogTitle>
+          <AlertDialogDescription>L’operazione non è reversibile.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel type="button">Annulla</AlertDialogCancel>
+          <AlertDialogAction type="button" onClick={handleDelete}>Conferma</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
