@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { DatePicker } from '@/components/ui/date-picker';
 import { SupplierSearch } from '@/components/forms/SupplierSearch';
@@ -167,12 +168,17 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
       <div className="grid gap-3 p-3 md:grid-cols-2">
         <div className="space-y-2">
           <label className="text-sm">Tipologia</label>
-          <select className="h-9 w-full rounded-md border px-3 text-sm" value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            <option value="CONTRATTO">Contratto</option>
-            <option value="DDT">DDT</option>
-            <option value="FATTURA">Fattura</option>
-            <option value="ALTRO">Altro</option>
-          </select>
+          <Select value={tipo} onValueChange={setTipo as any}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Seleziona tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="CONTRATTO">Contratto</SelectItem>
+              <SelectItem value="DDT">DDT</SelectItem>
+              <SelectItem value="FATTURA">Fattura</SelectItem>
+              <SelectItem value="ALTRO">Altro</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <label className="text-sm">File</label>
@@ -197,10 +203,15 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
           <div className="grid gap-3 md:grid-cols-4">
             <div>
               <label className="text-sm">Tipo</label>
-              <select className="h-9 w-full rounded-md border px-3 text-sm" value={kind} onChange={(e)=> setKind(e.target.value as any)}>
-                <option value="ECONOMICA">Economica</option>
-                <option value="CONSEGNA">Consegna</option>
-              </select>
+              <Select value={kind} onValueChange={(v)=> setKind(v as any)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Tipo scadenza" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ECONOMICA">Economica</SelectItem>
+                  <SelectItem value="CONSEGNA">Consegna</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-sm">Scadenza</label>

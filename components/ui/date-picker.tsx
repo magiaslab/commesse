@@ -15,12 +15,14 @@ type DatePickerProps = {
 
 export function DatePicker(props: DatePickerProps) {
   const { value, onChange, placeholder, min, max, className, disabled } = props;
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
   return (
     <div className={`relative ${className || ''}`}>
       <input
         type="date"
-        className="h-9 w-full cursor-pointer rounded-md border border-input bg-transparent px-3 pr-9 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        defaultValue={value || ''}
+        className="h-9 w-full cursor-pointer rounded-md border border-input bg-background px-3 pr-9 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        {...(mounted ? { value: value || '' } : { defaultValue: value || '' })}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder || ''}
         min={min}
