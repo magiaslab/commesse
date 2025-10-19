@@ -86,7 +86,10 @@ export function ScadenzeTable({ commessaId }: { commessaId: number }) {
       {
         header: 'Documento',
         cell: ({ row }) => row.original.document ? (
-          <a className="text-primary hover:underline" href={row.original.document.url} target="_blank" rel="noreferrer">Apri</a>
+          <div className="flex items-center gap-2">
+            <a className="text-primary hover:underline" href={row.original.document.url} target="_blank" rel="noreferrer">Apri</a>
+            <DeleteDocumentoButton scadenzaId={row.original.id} />
+          </div>
         ) : (
           <span className="text-muted-foreground">-</span>
         ),
@@ -219,6 +222,42 @@ function DeleteScadenzaButton({ id, onDeleted }: { id: number; onDeleted: () => 
         <AlertDialogHeader>
           <AlertDialogTitle>Eliminare la scadenza?</AlertDialogTitle>
           <AlertDialogDescription>L’operazione non è reversibile.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel type="button">Annulla</AlertDialogCancel>
+          <AlertDialogAction type="button" onClick={handleDelete}>Conferma</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function DeleteDocumentoButton({ scadenzaId }: { scadenzaId: number }) {
+  const handleDelete = async () => {
+    // Carico la scadenza per recuperare l'id documento collegato
+    const res = await fetch(`/api/scadenze?id=${scadenzaId}`, { cache: 'no-store' });
+    const data = res.ok ? await res.json() : null;
+    const docId = data?.documentRefId;
+    if (!docId) {
+      toast.error('Nessun documento collegato');
+      return;
+    }
+    const del = await fetch(`/api/documents/${docId}`, { method: 'DELETE', cache: 'no-store' });
+    if (del.ok) {
+      toast.success('Documento eliminato');
+    } else {
+      toast.error('Errore eliminazione documento');
+    }
+  };
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="text-red-600">Elimina</Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminare il documento?</AlertDialogTitle>
+          <AlertDialogDescription>Soft delete: il record sarà nascosto dall’elenco.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel type="button">Annulla</AlertDialogCancel>
