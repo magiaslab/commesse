@@ -15,7 +15,8 @@ type Scadenza = {
   title: string;
   dateDue: string;
   responsabile?: string | null;
-  alertDaysBefore?: string | null;
+  supplier?: { id: number; ragioneSociale: string } | null;
+  document?: { id: number; s3Key: string; filenameOriginal: string; mimetype: string; url: string } | null;
 };
 
 export function ScadenzeTable({ commessaId }: { commessaId: number }) {
@@ -68,20 +69,32 @@ export function ScadenzeTable({ commessaId }: { commessaId: number }) {
         ),
       },
       {
+        header: 'Giorni',
+        cell: ({ row }) => {
+          const d = new Date(row.original.dateDue);
+          const today = new Date();
+          const diff = Math.ceil((d.getTime() - new Date(today.toDateString()).getTime()) / (1000 * 60 * 60 * 24));
+          return <span className={diff < 0 ? 'text-red-600' : diff <= 7 ? 'text-amber-600' : undefined}>{diff}</span>;
+        },
+      },
+      {
+        header: 'Fornitore',
+        cell: ({ row }) => <span>{row.original.supplier?.ragioneSociale || '-'}</span>,
+      },
+      {
+        header: 'Documento',
+        cell: ({ row }) => row.original.document ? (
+          <a className="text-primary hover:underline" href={row.original.document.url} target="_blank" rel="noreferrer">Apri</a>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        ),
+      },
+      {
         header: 'Responsabile',
         cell: ({ row }) => (
           <Input
             defaultValue={row.original.responsabile || ''}
             onBlur={(e) => save(row.original.id, { responsabile: e.target.value })}
-          />
-        ),
-      },
-      {
-        header: 'Alert (giorni)',
-        cell: ({ row }) => (
-          <Input
-            defaultValue={row.original.alertDaysBefore || '[30,15,7]'}
-            onBlur={(e) => save(row.original.id, { alertDaysBefore: e.target.value })}
           />
         ),
       },
@@ -100,6 +113,28 @@ export function ScadenzeTable({ commessaId }: { commessaId: number }) {
           pageSize={pageSize}
           onPageSizeChange={(n) => { setPage(1); setPageSize(n); }}
         />
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget as HTMLFormElement;
+            const fd = new FormData(form);
+            const payload = {
+              commessaId,
+              title: String(fd.get('title') || ''),
+              tipo: String(fd.get('tipo') || 'generica'),
+              dateDue: String(fd.get('dateDue') || new Date().toISOString().slice(0,10)),
+              responsabile: String(fd.get('responsabile') || ''),
+            };
+            const res = await fetch('/api/scadenze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload) });
+            if (res.ok) { (form.reset(), setPage(1)); await load(); }
+          }}
+          className="mt-3 grid gap-2 md:grid-cols-4"
+        >
+          <Input name="title" placeholder="Nuova scadenza - titolo" />
+          <Input name="dateDue" type="date" />
+          <Input name="responsabile" placeholder="Responsabile" />
+          <Button type="submit" className="md:col-span-1">Aggiungi</Button>
+        </form>
       </div>
       {loading ? (
         <div className="space-y-2 px-3 pb-3">

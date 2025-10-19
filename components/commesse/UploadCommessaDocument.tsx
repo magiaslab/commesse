@@ -31,7 +31,7 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
 
   // Preset automatico scadenza in base al tipo documento
   useEffect(() => {
-    if (tipo === 'FATTURA') {
+    if (tipo === 'FATTURA' || tipo === 'FATTURA_CLIENTE') {
       setCreateScad(true);
       setKind('ECONOMICA');
       const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -92,24 +92,32 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
       }
       const createdDoc = await save.json();
 
-      if (tipo === 'FATTURA') {
+      if (tipo === 'FATTURA' || tipo === 'FATTURA_CLIENTE') {
         try {
-          if (!supplierId || !importo) {
+          if (tipo === 'FATTURA' && (!supplierId || !importo)) {
             toast.message('Fattura non creata automaticamente: specifica fornitore e importo');
           } else {
-            const invRes = await fetch('/api/invoices', {
+            const endpoint = tipo === 'FATTURA' ? '/api/invoices' : '/api/customer-invoices';
+            const body = tipo === 'FATTURA' ? {
+              commessaId,
+              supplierId: supplierIdNum ?? Number(supplierId),
+              numero: numeroFattura || file.name,
+              dataFattura: dataFattura || toYmd(new Date()),
+              importoTotale: Number(importo),
+              dataScadenza: dateDue || undefined,
+              documentoId: createdDoc?.id,
+            } : {
+              commessaId,
+              numero: numeroFattura || file.name,
+              dataFattura: dataFattura || toYmd(new Date()),
+              importoTotale: Number(importo || 0),
+              documentoId: createdDoc?.id,
+            };
+            const invRes = await fetch(endpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
-              body: JSON.stringify({
-                commessaId,
-                supplierId: supplierIdNum ?? Number(supplierId),
-                numero: numeroFattura || file.name,
-                dataFattura: dataFattura || toYmd(new Date()),
-                importoTotale: Number(importo),
-                dataScadenza: dateDue || undefined,
-                documentoId: createdDoc?.id,
-              }),
+              body: JSON.stringify(body),
             });
             if (!invRes.ok) {
               const msg = await invRes.text();
@@ -176,6 +184,7 @@ export function UploadCommessaDocument({ commessaId }: { commessaId: number }) {
               <SelectItem value="CONTRATTO">Contratto</SelectItem>
               <SelectItem value="DDT">DDT</SelectItem>
               <SelectItem value="FATTURA">Fattura</SelectItem>
+              <SelectItem value="FATTURA_CLIENTE">Fattura cliente</SelectItem>
               <SelectItem value="ALTRO">Altro</SelectItem>
             </SelectContent>
           </Select>

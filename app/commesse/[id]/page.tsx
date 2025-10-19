@@ -13,6 +13,11 @@ import { CommessaNotes } from '@/components/commesse/CommessaNotes';
 import { PreventiviSection } from '@/components/commesse/PreventiviSection';
 import { CommessaDDTTable } from '@/components/commesse/CommessaDDTTable';
 import { CommessaInvoicesTable } from '@/components/commesse/CommessaInvoicesTable';
+import { CommessaCustomerInvoicesTable } from '@/components/commesse/CommessaCustomerInvoicesTable';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
 
 async function getCommessa(id: string) {
   const h = headers();
@@ -40,7 +45,7 @@ export default async function CommessaPage({ params }: { params: { id: string } 
   if (!commessa) return notFound();
 
   const budget = commessa.budget ?? 0;
-  const totaleFatture = invoices.reduce((sum: number, i: any) => sum + (i.importoTotale || 0), 0);
+  const totaleFornitori = invoices.reduce((sum: number, i: any) => sum + (i.importoTotale || 0), 0);
   const oggi = new Date();
   const totaleScaduto = invoices
     .filter((i: any) => i.statoPagamento !== 'pagata' && new Date(i.dataScadenza) < oggi)
@@ -56,19 +61,16 @@ export default async function CommessaPage({ params }: { params: { id: string } 
         <div className="h-2 w-full rounded bg-gray-100">
           <div
             className="h-2 rounded bg-primary"
-            style={{ width: `${Math.min(100, budget ? (totaleFatture / budget) * 100 : 0)}%` }}
+            style={{ width: `${Math.min(100, budget ? (totaleFornitori / budget) * 100 : 0)}%` }}
           />
         </div>
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KPICard title="Budget" value={budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} />
+        <KPICard title="Totale fatture fornitore" value={totaleFornitori.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })} />
         <KPICard
-          title="Totale fatture"
-          value={totaleFatture.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
-        />
-        <KPICard
-          title="Totale scaduto"
+          title="Totale scaduto (fornitori)"
           value={totaleScaduto.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
         />
       </section>
@@ -76,11 +78,59 @@ export default async function CommessaPage({ params }: { params: { id: string } 
       <Tabs defaultValue="documenti">
         <TabsList>
           <TabsTrigger value="documenti">Documenti</TabsTrigger>
+          <TabsTrigger value="edit">Modifica</TabsTrigger>
           <TabsTrigger value="scadenze">Scadenze</TabsTrigger>
           <TabsTrigger value="kanban">Kanban</TabsTrigger>
           <TabsTrigger value="note">Note</TabsTrigger>
           <TabsTrigger value="preventivi">Preventivi</TabsTrigger>
         </TabsList>
+        <TabsContent value="edit">
+          <form
+            action={async (formData) => {
+              'use server';
+              const h = headers();
+              const host = h.get('host') || 'localhost:3000';
+              const proto = h.get('x-forwarded-proto') || 'http';
+              const base = `${proto}://${host}`;
+              const cookie = h.get('cookie') || '';
+              const payload = {
+                titolo: String(formData.get('titolo') || commessa.titolo),
+                clientId: Number(formData.get('clientId') || commessa.clientId),
+                budget: formData.get('budget') ? Number(formData.get('budget')) : null,
+                descrizione: String(formData.get('descrizione') || ''),
+                dataInizio: String(formData.get('dataInizio') || '') || null,
+                dataFinePrev: String(formData.get('dataFinePrev') || '') || null,
+              };
+              await fetch(`${base}/api/commesse/${params.id}`, { method: 'PUT', headers: { cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store' });
+              redirect(`/commesse/${params.id}`);
+            }}
+            className="grid gap-3 md:grid-cols-2"
+          >
+            <div>
+              <label className="text-sm">Titolo</label>
+              <Input name="titolo" defaultValue={commessa.titolo} />
+            </div>
+            <div>
+              <label className="text-sm">Budget (€)</label>
+              <Input name="budget" type="number" step="0.01" defaultValue={commessa.budget ?? ''} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-sm">Descrizione</label>
+              <Textarea name="descrizione" defaultValue={commessa.descrizione || ''} />
+            </div>
+            <div>
+              <label className="text-sm">Data inizio</label>
+              <Input name="dataInizio" type="date" defaultValue={commessa.dataInizio ? String(commessa.dataInizio).slice(0,10) : ''} />
+            </div>
+            <div>
+              <label className="text-sm">Scadenza consegna</label>
+              <Input name="dataFinePrev" type="date" defaultValue={commessa.dataFinePrev ? String(commessa.dataFinePrev).slice(0,10) : ''} />
+            </div>
+            <div className="md:col-span-2 flex items-center justify-end gap-2">
+              <Button type="submit">Salva</Button>
+            </div>
+          </form>
+        </TabsContent>
         <TabsContent value="documenti">
           <div className="space-y-8">
             <section className="w-full">
@@ -127,6 +177,11 @@ export default async function CommessaPage({ params }: { params: { id: string } 
             <section className="w-full">
               <h2 className="mb-2 text-lg font-semibold">Fatture</h2>
               <CommessaInvoicesTable commessaId={Number(params.id)} />
+            </section>
+
+            <section className="w-full">
+              <h2 className="mb-2 text-lg font-semibold">Fatture emesse (clienti)</h2>
+              <CommessaCustomerInvoicesTable commessaId={Number(params.id)} />
             </section>
 
             <section className="w-full">

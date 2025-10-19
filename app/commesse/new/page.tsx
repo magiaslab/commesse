@@ -17,9 +17,9 @@ export default function NewCommessaPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch('/api/clients');
+      const res = await fetch('/api/clients', { cache: 'no-store' });
       const json = await res.json();
-      setClients(json);
+      setClients(Array.isArray(json) ? json : (json.items || []));
     })();
   }, []);
 

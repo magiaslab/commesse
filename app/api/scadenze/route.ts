@@ -44,7 +44,25 @@ export async function GET(req: Request) {
       prisma.scadenza.findMany({ where, orderBy: { dateDue: 'asc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.scadenza.count({ where }),
     ]);
-    return NextResponse.json({ items, total, page, pageSize });
+
+    // Enrich with supplier and document info to avoid N+1 calls from client
+    const supplierIds = Array.from(new Set(items.map((i) => i.supplierId).filter((v): v is number => !!v)));
+    const docIds = Array.from(new Set(items.map((i) => i.documentRefId).filter((v): v is number => !!v)));
+    const [suppliers, documents] = await Promise.all([
+      supplierIds.length ? prisma.supplier.findMany({ where: { id: { in: supplierIds } }, select: { id: true, ragioneSociale: true } }) : Promise.resolve([] as any[]),
+      docIds.length ? prisma.document.findMany({ where: { id: { in: docIds } }, select: { id: true, s3Key: true, filenameOriginal: true, mimetype: true } }) : Promise.resolve([] as any[]),
+    ]);
+    const supplierById = new Map(suppliers.map((s) => [s.id, s] as const));
+    const documentById = new Map(documents.map((d) => [d.id, d] as const));
+    const enriched = items.map((r) => ({
+      ...r,
+      supplier: r.supplierId ? supplierById.get(r.supplierId) || null : null,
+      document: r.documentRefId ? (() => {
+        const d = documentById.get(r.documentRefId!);
+        return d ? { ...d, url: `/api/files/${encodeURIComponent(d.s3Key)}` } : null;
+      })() : null,
+    }));
+    return NextResponse.json({ items: enriched, total, page, pageSize });
   } catch (e: any) {
     return new NextResponse(e.message || 'Errore', { status: 500 });
   }

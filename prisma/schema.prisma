@@ -114,6 +114,7 @@ model Commessa {
   documents     Document[]
   ddt           DDT[]
   invoices      Invoice[]
+  customerInvoices CustomerInvoice[]
   scadenze      Scadenza[]
   invoiceLinks  InvoiceCommessa[]
   ddtLinks      DDTCommessa[]
@@ -143,6 +144,7 @@ model Document {
   notes             String?
   ddtRecords        DDT[]     @relation("DDTDocument")
   invoiceRecords    Invoice[] @relation("InvoiceDocument")
+  customerInvoices  CustomerInvoice[] @relation("CustomerInvoiceDocument")
   preventivoVersions PreventivoVersion[] @relation("PreventivoVersionDocument")
 }
 
@@ -221,6 +223,21 @@ model Scadenza {
   alertEmail      Boolean  @default(true)
   alertDaysBefore String?
   createdAt       DateTime @default(now())
+}
+
+// Fatture emesse (incassi)
+model CustomerInvoice {
+  id             Int       @id @default(autoincrement())
+  commessaId     Int?
+  commessa       Commessa? @relation(fields: [commessaId], references: [id])
+  numero         String
+  dataFattura    DateTime
+  importoTotale  Float
+  dataIncasso    DateTime?
+  statoIncasso   String    @default("da_incassare")
+  documentoId    Int?
+  documento      Document? @relation("CustomerInvoiceDocument", fields: [documentoId], references: [id])
+  createdAt      DateTime  @default(now())
 }
 
 // Preventivi di commessa

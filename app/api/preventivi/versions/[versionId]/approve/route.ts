@@ -13,8 +13,8 @@ export async function POST(_: Request, { params }: { params: { versionId: string
     await tx.preventivoVersion.updateMany({ where: { preventivoId: v.preventivoId, status: 'APPROVED' }, data: { status: 'SUPERSEDED' } });
     const updated = await tx.preventivoVersion.update({ where: { id }, data: { status: 'APPROVED', approvedAt: new Date() } });
     await tx.preventivo.update({ where: { id: v.preventivoId }, data: { currentApprovedVersionId: id } });
-    // Aggiorna budget commessa = totale imponibile (puoi cambiare in totalWithTax se preferisci)
-    await tx.commessa.update({ where: { id: v.preventivo.commessaId }, data: { budget: updated.totalBeforeTax } });
+    // Aggiorna budget commessa = totale con IVA (coerente con KPI richiesti)
+    await tx.commessa.update({ where: { id: v.preventivo.commessaId }, data: { budget: updated.totalWithTax } });
   });
   return new NextResponse(null, { status: 204 });
 }
